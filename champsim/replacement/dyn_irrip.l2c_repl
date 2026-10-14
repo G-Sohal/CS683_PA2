@@ -1,187 +1,189 @@
-/*
- * Task 2B (+ Task 3 prefetch awareness)
- * Dynamic I-RRIP for the L2C
- *
- *  task 2b -> set dueling between "instruction prioritisation" and plain RRIP
- *  * NUM_LEADER_SETS (32) of the 1024 L2 sets are LEADER sets. They ALWAYS run plain SRRIP (insert RRPV 2, hit -> RRPV 0, evict any RRPV-3 line).
- *    Leader sets are spread uniformly over the index space: leader  <=>  set % (L2C_SET / NUM_LEADER_SETS) == 0
- *  * For every demand access that reaches a leader set we count instr_acc, instr_miss, total_acc, total_miss
- *  * Every EPOCH_ACCESSES leader accesses we evaluate
- *           ratio=(instr_acc + instr_miss) / (total_acc + total_miss)
- *              ratio > THRESHOLD  => the workload is currently instruction-intensive in the L2, follower sets run I-RRIP (Task 2A policy);
- *              otherwise          => follower sets run plain SRRIP.
- *    After each decision all four counters are halved, so the history decays geometrically and the policy can follow program phases.
- *  * Because the leader sets are never instruction-biased, the counters observe the "natural" instruction pressure of the program, not a pressure that the
- *    policy itself has already reduced
- *
- *  task3 ->prefetch awareness (DYN_IRRIP_PF_AWARE, default ON)
- *  lines brought into the L2 by the L1D SPP prefetcher arrive with type == PREFETCH. With awareness enabled:
- *   insertion: prefetch fill is inserted at RRPV PF_INSERT_RRPV (3=distant) and its per-line "prefetched" bit is set.
- *   promotion: a PREFETCH request that hits in the L2 does NOT promote the line (a prefetch is not a proof of reuse). A demand hit on a prefetched line promotes it to RRPV 0 and clears the bit (the prefetch was useful, the line is now ordinary).
- *   eviction: among RRPV-3 lines we evict, in order: an unused prefetched line, a data line, an instruction line (follower sets in I-RRIP mode) / any line (RRIP mode).
- *   dueling: prefetch requests are not counted in the leader-set counters, so aggressive prefetching cannot make the workload look "data-intensive" and switch off instruction protection.
- *  without an L1D/L2 prefetcher no PREFETCH packets reach the L2, so the Task 2B results are identical with or without this awareness.
- */
-
 #include "cache.h"
-#include <cstdlib>
 
 #define maxRRPV 3
-#define RRPV_INSERT_DATA (maxRRPV - 1)
-#define RRPV_INSERT_INSTR 0
-#define RRPV_HIT 0
+#define LEADER_SET_INTERVAL 32 // 1024 / 32 = 32 leader sets (3.125% of total sets)
 
-#define NUM_LEADER_SETS 32
-#define LEADER_STRIDE (L2C_SET / NUM_LEADER_SETS)
-#define EPOCH_ACCESSES 1024
-#define DEFAULT_THRESHOLD 0.50
+#ifndef DYN_THRESHOLD
+#define DYN_THRESHOLD 0.25
+#endif
 
-static uint32_t l2_rrpv[L2C_SET][L2C_WAY];
-static uint8_t  l2_is_instr[L2C_SET][L2C_WAY];  //line was brought/touched by an instruction fetch
-static uint8_t  l2_is_pf[L2C_SET][L2C_WAY]; //line was brought by a prefetch and not yet used
+// Task 3 (prefetch awareness): RRPV at which prefetch fills are inserted.
+// Every prefetch-aware rule below applies only to PREFETCH requests, so without
+// a data prefetcher the policy behaves exactly as the Task 2B Dynamic I-RRIP.
+#ifndef PF_INSERT_RRPV
+#define PF_INSERT_RRPV (maxRRPV - 1) // 2; inserting at 3 was within 0.15% (see report)
+#endif
 
-//set-dueling monitor(counters for the leader sets)
-static uint32_t ctr_instr_acc=0, ctr_instr_miss=0, ctr_total_acc=0, ctr_total_miss=0;
-static uint32_t epoch_accesses=0;
-static bool irrip_mode=true; //follower-set policy
+uint32_t l2_rrpv[L2C_SET][L2C_WAY];
+uint8_t  l2_is_pf[L2C_SET][L2C_WAY]; // line was filled by a prefetch and has not seen a demand hit yet
 
-//configuration
-static double dyn_threshold =DEFAULT_THRESHOLD;
-static bool pf_aware=true;
-static uint32_t pf_insert_rrpv=maxRRPV;
+// Statistics tracked on leader sets (which run pure RRIP)
+uint64_t leader_instr_access = 0;
+uint64_t leader_instr_miss = 0;
+uint64_t leader_total_access = 0;
+uint64_t leader_total_miss = 0;
 
-//statistics only
-static uint64_t stat_epochs=0, stat_epochs_irrip=0, stat_switches=0;
-static uint64_t stat_follower_irrip_fills=0, stat_follower_rrip_fills=0;
-static uint64_t stat_pf_fills=0, stat_pf_used=0, stat_pf_evicted_unused=0;
-static double   stat_ratio_sum=0, stat_ratio_min=1, stat_ratio_max=0;
-
-static inline bool is_leader(uint32_t set) { return (set % LEADER_STRIDE) == 0; }
-
-//initialize replacement state
-void CACHE::l2c_initialize_replacement(){
-    if(const char *s=getenv("DYN_IRRIP_THRESHOLD")) dyn_threshold=atof(s);
-    if(const char *s=getenv("DYN_IRRIP_PF_AWARE"))  pf_aware=atoi(s) != 0;
-    if(const char *s=getenv("DYN_IRRIP_PF_INSERT")) pf_insert_rrpv=(uint32_t)atoi(s) > maxRRPV ? maxRRPV : (uint32_t)atoi(s);
-
-    cout <<"Initialize Dynamic I-RRIP state for L2C: leader sets " << NUM_LEADER_SETS<< " threshold " << dyn_threshold << " prefetch-aware " << pf_aware<< " pf-insert-rrpv " << pf_insert_rrpv << endl;
-    for (int i=0; i<L2C_SET; i++) {
-        for (int j=0; j<L2C_WAY; j++) {
-            l2_rrpv[i][j]=maxRRPV;
-            l2_is_instr[i][j]=0;
-            l2_is_pf[i][j]=0;
-        }
-    }
+// Helper to determine if a set is a leader set
+inline bool is_leader_set(uint32_t set)
+{
+    return (set % LEADER_SET_INTERVAL == 0);
 }
 
-//find replacement victim
-uint32_t CACHE::l2c_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type){
-    for (int i=0; i<L2C_WAY; i++)
+//return true if irrip should be used
+inline bool use_irrip(uint32_t set)
+{
+    if (is_leader_set(set)) return false;
+    uint64_t total = leader_total_access + leader_total_miss;
+    if (total == 0) return true;
+    uint64_t instr = leader_instr_access + leader_instr_miss;
+    double ratio = (double)instr / (double)total;
+
+    return (ratio > DYN_THRESHOLD);
+}
+
+// Initialize replacement state for Dynamic I-RRIP
+void CACHE::l2c_initialize_replacement()
+{
+    cout << "Initialize Dynamic I-RRIP state for L2C (Threshold = " << DYN_THRESHOLD << ")" << endl;
+
+    for (int i=0; i<L2C_SET; i++) {
+        for (int j=0; j<L2C_WAY; j++) {
+            l2_rrpv[i][j] = maxRRPV;
+            l2_is_pf[i][j] = 0;
+        }
+    }
+
+    leader_instr_access = 0;
+    leader_instr_miss = 0;
+    leader_total_access = 0;
+    leader_total_miss = 0;
+}
+
+// Find replacement victim
+uint32_t CACHE::l2c_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
+{
+    // 1. Look for an invalid line first
+    for (int i=0; i<L2C_WAY; i++) {
         if (!current_set[i].valid)
             return i;
-
-    bool use_irrip=!is_leader(set) && irrip_mode;
-    while (1){
-        //(Task 3) unused prefetched lines are the cheapest victims
-        if (pf_aware)
-            for (int i=0; i<L2C_WAY; i++)
-                if (l2_rrpv[set][i] == maxRRPV && l2_is_pf[set][i]) {
-                    stat_pf_evicted_unused++;
-                    return i;
-                }
-
-        //(Task 2)in I-RRIP mode protect instruction lines: data first
-        if (use_irrip)
-            for (int i=0; i<L2C_WAY; i++)
-                if (l2_rrpv[set][i] == maxRRPV && !l2_is_instr[set][i])
-                    return i;
-
-        for(int i=0; i<L2C_WAY; i++)
-            if (l2_rrpv[set][i] == maxRRPV)
-                return i;
-
-        for(int i=0; i<L2C_WAY; i++) l2_rrpv[set][i]++;
     }
+
+    // (Task 3) An unused prefetched line at maxRRPV is the cheapest victim
+    for (int i=0; i<L2C_WAY; i++) {
+        if (l2_is_pf[set][i] && l2_rrpv[set][i] >= maxRRPV)
+            return i;
+    }
+
+    // 2. If in I-RRIP mode, prioritize evicting non-instruction lines
+    if (use_irrip(set)) {
+        while (1)
+        {
+            // First pass: try to find a non-instruction victim at maxRRPV
+            for (int i=0; i<L2C_WAY; i++) {
+                if (!current_set[i].instruction && l2_rrpv[set][i] >= maxRRPV)
+                    return i;
+            }
+
+            // Check if there are ANY non-instruction lines in this set
+            bool has_non_instr = false;
+            for (int i=0; i<L2C_WAY; i++) {
+                if (!current_set[i].instruction) {
+                    has_non_instr = true;
+                    break;
+                }
+            }
+
+            // If there are NO non-instruction lines, evict an instruction line at maxRRPV
+            if (!has_non_instr) {
+                for (int i=0; i<L2C_WAY; i++) {
+                    if (l2_rrpv[set][i] >= maxRRPV)
+                        return i;
+                }
+            }
+
+            // Aging: increment RRPV of lines that haven't reached maxRRPV
+            for (int i=0; i<L2C_WAY; i++) {
+                if (l2_rrpv[set][i] < maxRRPV)
+                    l2_rrpv[set][i]++;
+            }
+        }
+    } else {
+        // Standard RRIP victim selection
+        while (1)
+        {
+            for (int i=0; i<L2C_WAY; i++) {
+                if (l2_rrpv[set][i] >= maxRRPV)
+                    return i;
+            }
+
+            for (int i=0; i<L2C_WAY; i++) {
+                if (l2_rrpv[set][i] < maxRRPV)
+                    l2_rrpv[set][i]++;
+            }
+        }
+    }
+
+    // WE SHOULD NOT REACH HERE
     assert(0);
     return 0;
 }
 
-//set-dueling monitor called for every access to a leader set
-static void dyn_irrip_monitor(uint32_t type, uint8_t hit, uint8_t isInstruction){
-    if (type == WRITEBACK) return;
-    if (pf_aware && type == PREFETCH) return;
-
-    ctr_total_acc++;
-    if(!hit) ctr_total_miss++;
-    if(isInstruction) {
-        ctr_instr_acc++;
-        if (!hit) ctr_instr_miss++;
-    }
-
-    if(++epoch_accesses < EPOCH_ACCESSES) return;
-
-    //end of epoch decide the follower policy
-    double ratio=(double)(ctr_instr_acc + ctr_instr_miss) / (double)(ctr_total_acc + ctr_total_miss);
-    bool new_mode=ratio > dyn_threshold;
-    stat_ratio_sum += ratio;
-    if(ratio < stat_ratio_min) stat_ratio_min=ratio;
-    if(ratio > stat_ratio_max) stat_ratio_max=ratio;
-    if(new_mode != irrip_mode) stat_switches++;
-    irrip_mode=new_mode;
-    stat_epochs++;
-    if(irrip_mode) stat_epochs_irrip++;
-    ctr_instr_acc >>= 1; ctr_instr_miss >>= 1; ctr_total_acc >>= 1; ctr_total_miss >>= 1;
-    epoch_accesses=0;
-}
-
-//called on every cache hit and cache fill
+// Called on every cache hit and cache fill
 void CACHE::l2c_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t way, uint64_t full_addr, uint64_t ip, uint64_t victim_addr, uint32_t type, uint8_t hit, uint8_t isInstruction)
 {
-    if ((type == WRITEBACK) && ip) assert(0);
+    // Update leader set statistics for Set-Dueling
+    // (Task 3) Prefetch requests are not counted, so a data prefetcher cannot dilute
+    // the instruction ratio and switch off instruction protection.
+    if (is_leader_set(set) && type != PREFETCH) {
+        leader_total_access++;
+        if (!hit)
+            leader_total_miss++;
 
-    bool leader=is_leader(set);
-    if(leader) dyn_irrip_monitor(type, hit, isInstruction);
+        if (isInstruction) {
+            leader_instr_access++;
+            if (!hit)
+                leader_instr_miss++;
+        }
 
-    bool use_irrip=!leader && irrip_mode;
-
-    if(hit){
-        if (type == WRITEBACK) return;    //writeback is not reuse
-        if(pf_aware && type == PREFETCH) return; //neither is a prefetch(task3)
-
-        //demand hit is promote =prefetched line that is demanded becomes ordinary
-        if (l2_is_pf[set][way]) { stat_pf_used++; l2_is_pf[set][way]=0; }
-        l2_rrpv[set][way]=RRPV_HIT;
-        if (isInstruction) l2_is_instr[set][way]=1;
-        return;
+        // Periodic decay to avoid saturation and adapt to dynamic phase transitions
+        if (leader_total_access >= 4096) {
+            leader_instr_access >>= 1;
+            leader_instr_miss >>= 1;
+            leader_total_access >>= 1;
+            leader_total_miss >>= 1;
+        }
     }
 
-    //insertion
-    l2_is_instr[set][way]=isInstruction ? 1 : 0;
-    l2_is_pf[set][way] =0;
+    if (hit) {
+        // (Task 3) A prefetch request hitting a line is not evidence of reuse
+        if (type == PREFETCH)
+            return;
 
-    if (pf_aware && type== PREFETCH) {
-        l2_rrpv[set][way] =pf_insert_rrpv;
-        l2_is_pf[set][way]=1;
-        stat_pf_fills++;
-        return;
-    }
+        // Cache hit promotes line to MRU (0); a demanded prefetched line becomes ordinary
+        l2_rrpv[set][way] = 0;
+        l2_is_pf[set][way] = 0;
+    } else {
+        // (Task 3) Prefetch fills are speculative: insert at PF_INSERT_RRPV and mark them
+        l2_is_pf[set][way] = (type == PREFETCH);
+        if (type == PREFETCH) {
+            l2_rrpv[set][way] = PF_INSERT_RRPV;
+            return;
+        }
 
-    if(use_irrip) {
-        l2_rrpv[set][way]=isInstruction ? RRPV_INSERT_INSTR : RRPV_INSERT_DATA;
-        stat_follower_irrip_fills++;
-    } 
-    else {
-        l2_rrpv[set][way]=RRPV_INSERT_DATA;
-        if (!leader) stat_follower_rrip_fills++;
+        // Insertion:
+        if (use_irrip(set)) {
+            // I-RRIP mode: prioritize instructions with intermediate RRPV
+            if (isInstruction)
+                l2_rrpv[set][way] = 1;
+            else
+                l2_rrpv[set][way] = maxRRPV - 1; // 2
+        } else {
+            // Standard RRIP mode: insert all lines with RRPV = 2
+            l2_rrpv[set][way] = maxRRPV - 1; // 2
+        }
     }
 }
 
-//use this function to print out your own stats at the end of simulation
 void CACHE::l2c_replacement_final_stats()
 {
-    cout << "DYN-IRRIP threshold: " << dyn_threshold << " pf_aware: " << pf_aware<< " pf_insert_rrpv: " << pf_insert_rrpv << endl;
-    cout << "DYN-IRRIP epochs: " << stat_epochs << " epochs_in_irrip_mode: " << stat_epochs_irrip<< " switches: " << stat_switches << " final_mode: " << (irrip_mode ? "I-RRIP" : "RRIP") << endl;
-    cout << "DYN-IRRIP ratio mean: " << (stat_epochs ? stat_ratio_sum / stat_epochs : 0)<< " min: " << stat_ratio_min << " max: " << stat_ratio_max << endl;
-    cout << "DYN-IRRIP follower fills irrip: " << stat_follower_irrip_fills<< " rrip: " << stat_follower_rrip_fills << endl;
-    cout << "DYN-IRRIP prefetch fills: " << stat_pf_fills << " used: " << stat_pf_used << " evicted_unused: " << stat_pf_evicted_unused << endl;
 }

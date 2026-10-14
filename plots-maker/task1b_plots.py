@@ -38,34 +38,35 @@ TRACES = ["Trace 1", "Trace 2", "Trace 3"]
 # Keep accuracy and coverage in the same format throughout:
 # either fractions (e.g. 0.75) or percentages (e.g. 75.0).
 #
-# Source: champsim/results/task1b/*.txt (25M warmup + 25M sim instructions).
+# Source: champsim/results/final/*.txt (25M warmup + 25M sim instructions,
+# run from traces/ so the seed matches the Task 2 runs).
 # accuracy (%) = L1D useful prefetches / prefetches issued to lower level
 # coverage (%) = (baseline L1D load misses - L1D load misses) / baseline L1D load misses
 # Baseline issues no prefetches, so its accuracy and coverage are 0.
 
 DATA = {
     "Baseline": {
-        "ipc":             [0.232113, 0.249982, 0.381868],
-        "speedup":         [1.0, 1.0, 1.0],
-        "l1d_load_mpki":   [10.6788, 13.5372, 3.40356],
-        "accuracy":        [0.0, 0.0, 0.0],
-        "coverage":        [0.0, 0.0, 0.0],
+        "ipc":              [0.232288, 0.250638, 0.382008],
+        "speedup":          [1.0, 1.0, 1.0],
+        "l1d_load_mpki":    [10.6782, 13.5363, 3.40324],
+        "accuracy":         [0.0, 0.0, 0.0],
+        "coverage":         [0.0, 0.0, 0.0],
     },
 
     "IP-stride": {
-        "ipc":             [0.233108, 0.250141, 0.382687],
-        "speedup":         [1.0043, 1.0006, 1.0021],
-        "l1d_load_mpki":   [10.1193, 13.4384, 3.31768],
-        "accuracy":        [52.93, 37.92, 16.06],
-        "coverage":        [5.24, 0.73, 2.52],
+        "ipc":              [0.233344, 0.250518, 0.382889],
+        "speedup":          [1.0045, 0.9995, 1.0023],
+        "l1d_load_mpki":    [10.1173, 13.4378, 3.31884],
+        "accuracy":         [53.0, 38.17, 15.95],
+        "coverage":         [5.25, 0.73, 2.48],
     },
 
     "SPP": {
-        "ipc":             [0.233796, 0.251126, 0.388273],
-        "speedup":         [1.0073, 1.0046, 1.0168],
-        "l1d_load_mpki":   [9.69012, 13.2056, 2.91452],
-        "accuracy":        [53.48, 46.03, 44.96],
-        "coverage":        [9.26, 2.45, 14.37],
+        "ipc":              [0.233928, 0.251841, 0.388507],
+        "speedup":          [1.0071, 1.0048, 1.017],
+        "l1d_load_mpki":    [9.68772, 13.2022, 2.916],
+        "accuracy":         [53.63, 46.27, 44.76],
+        "coverage":         [9.28, 2.47, 14.32],
     },
 }
 

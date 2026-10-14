@@ -18,6 +18,9 @@
 \usepackage{amssymb}
 \usepackage{hyperref}
 
+\usepackage{tabularx}
+\usepackage{array}
+
 \hypersetup{
     colorlinks=true,
     linkcolor=blue,
@@ -62,15 +65,15 @@ Thus, it exploits regular memory access patterns to fetch data in advance, while
 \toprule
 Trace & Baseline IPC & SPP IPC & Speedup & Baseline L1D MPKI & SPP L1D MPKI & Prefetch Accuracy & Coverage \\
 \midrule
-Trace 1 & 0.2321 & 0.2338 & 1.0073$\times$ (+0.73\%) & 10.6788 & 9.6901 & 53.48\% & 9.26\% \\
-Trace 2 & 0.2500 & 0.2511 & 1.0046$\times$ (+0.46\%) & 13.5372 & 13.2056 & 46.03\% & 2.45\% \\
-Trace 3 & 0.3819 & 0.3883 & 1.0168$\times$ (+1.68\%) & 3.4036 & 2.9145 & 44.96\% & 14.37\% \\
+Trace 1 & 0.2323 & 0.2339 & 1.0071$\times$ (+0.71\%) & 10.6782 & 9.6877 & 53.63\% & 9.28\% \\
+Trace 2 & 0.2506 & 0.2518 & 1.0048$\times$ (+0.48\%) & 13.5363 & 13.2022 & 46.27\% & 2.47\% \\
+Trace 3 & 0.3820 & 0.3885 & 1.0170$\times$ (+1.70\%) & 3.4032 & 2.9160 & 44.76\% & 14.32\% \\
 \bottomrule
 \end{tabular}
 }
 \end{table}
 
-For comparison, the reference IP-stride prefetcher achieves an IPC of 0.2331 (1.0043$\times$), 0.2501 (1.0006$\times$), and 0.3827 (1.0021$\times$) on Traces 1, 2, and 3, respectively. SPP consistently outperforms IP-stride across all benchmarks in both speedup and coverage due to its dual pattern classification and multi-stride lookahead capability.
+For comparison, the reference IP-stride prefetcher achieves an IPC of 0.2333 (1.0045$\times$), 0.2505 (0.9995$\times$), and 0.3829 (1.0023$\times$) on Traces 1, 2, and 3, respectively, with prefetch accuracies of 53.00\%, 38.17\%, and 15.95\% and coverages of 5.25\%, 0.73\%, and 2.48\%. SPP consistently outperforms IP-stride across all benchmarks in both speedup and coverage due to its dual pattern classification and multi-stride lookahead capability.
 
 \begin{figure}[H]
     \centering
@@ -109,87 +112,147 @@ For comparison, the reference IP-stride prefetcher achieves an IPC of 0.2331 (1.
 
     \item \textbf{Total Storage Overhead of Prefetcher:}
     
-    The prefetcher consists of two primary hardware tables and a minimal set of control registers:
-    \begin{table}[H]
+    The prefetcher consists of three hardware tables and a small set of control registers. The bit widths below are the ones used in \texttt{spp.l1d\_pref} (the simulator stores them in wider C types):
+ \begin{table}[H]
 \centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
 \caption{Bit-level storage overhead of the Stride Pattern Prefetcher (SPP).}
 \label{tab:spp-storage}
-\begin{tabular}{llccc}
+
+\begin{tabularx}{\textwidth}{@{}
+p{2.0cm}
+>{\raggedright\arraybackslash}X
+>{\centering\arraybackslash}p{1.15cm}
+>{\centering\arraybackslash}p{1.35cm}
+>{\raggedleft\arraybackslash}p{2.6cm}
+@{}}
 \toprule
 Table & Field & Bits per Entry & Number of Entries & Total Bits \\
 \midrule
-\textbf{IP Tracking Table} & Valid bit & 1 & 64 & 64 \\
-                           & IP Tag (\texttt{ip \& 0xFFFF}) & 16 & 64 & 1,024 \\
-                           & Last Cache Line Address & 58 & 64 & 3,712 \\
-                           & Last Observed Stride & 8 & 64 & 512 \\
-                           & Uniform Confidence Counter & 2 & 64 & 128 \\
-                           & Stride History Signature & 10 & 64 & 640 \\
-                           & LRU Replacement State & 6 & 64 & 384 \\
+
+\textbf{IP Table (16 sets $\times$ 4 ways)}
+& Valid bit & 1 & 64 & 64 \\
+
+& IP tag (hashed IP) & 10 & 64 & 640 \\
+
+& Page tag (low bits of last virtual page) & 4 & 64 & 256 \\
+
+& Last cache-line offset within the page & 6 & 64 & 384 \\
+
+& Last observed stride (signed) & 7 & 64 & 448 \\
+
+& Uniform-stride confidence counter & 2 & 64 & 128 \\
+
+& Stride-history signature & 12 & 64 & 768 \\
+
+& LRU position within the set & 2 & 64 & 128 \\
+
 \midrule
-\multicolumn{2}{l}{\textit{IP Table Subtotal}} & \textit{101 bits} & \textit{64} & \textit{6,464 bits (808 B)} \\
+\multicolumn{2}{@{}l}{\textit{IP Table Subtotal}}
+& \textit{44 bits} & \textit{64} & \textit{2,816 bits (352 B)} \\
+
 \midrule
-\textbf{Pattern Table (PT)} & Predicted Next Stride & 8 & 1,024 & 8,192 \\
-                            & Prediction Confidence Counter & 2 & 1,024 & 2,048 \\
+\textbf{Pattern Table (PT)}
+& Predicted next stride (signed) & 7 & 512 & 3,584 \\
+
+& Prediction confidence counter & 2 & 512 & 1,024 \\
+
 \midrule
-\multicolumn{2}{l}{\textit{Pattern Table Subtotal}} & \textit{10 bits} & \textit{1,024} & \textit{10,240 bits (1,280 B)} \\
+\multicolumn{2}{@{}l}{\textit{Pattern Table Subtotal}}
+& \textit{9 bits} & \textit{512} & \textit{4,608 bits (576 B)} \\
+
 \midrule
-\textbf{Control Registers}  & Last Epoch Issued Counter & 32 & 1 & 32 \\
-                            & Last Epoch Useful Counter & 32 & 1 & 32 \\
-                            & Current Dynamic Degree Register & 3 & 1 & 3 \\
+\textbf{Recent Prefetch Table (RPT)}
+& Valid bit & 1 & 128 & 128 \\
+
+& Line-address tag & 9 & 128 & 1,152 \\
+
+& Filled bit (prefetch has reached the L1D) & 1 & 128 & 128 \\
+
 \midrule
-\multicolumn{2}{l}{\textit{Control Registers Subtotal}} & \textit{67 bits} & \textit{1} & \textit{67 bits (~8.4 B)} \\
+\multicolumn{2}{@{}l}{\textit{RPT Subtotal}}
+& \textit{11 bits} & \textit{128} & \textit{1,408 bits (176 B)} \\
+
 \midrule
-\multicolumn{4}{r}{\textbf{Total Storage Overhead}} & \textbf{16,771 bits (2,096.4 B $\approx$ 2.05 KB)} \\
+\textbf{Control Registers}
+& Epoch issued-prefetch counter (0--255) & 8 & 1 & 8 \\
+
+& Epoch useful-prefetch counter (saturating) & 9 & 1 & 9 \\
+
+& Current degree register & 3 & 1 & 3 \\
+
+\midrule
+\multicolumn{2}{@{}l}{\textit{Control Registers Subtotal}}
+& \textit{20 bits} & \textit{1} & \textit{20 bits (2.5 B)} \\
+
+\midrule
+\multicolumn{4}{r}{\textbf{Total Storage Overhead}}
+& \textbf{8,852 bits (1,106.5 B $\approx$ 1.08 KB)} \\
+
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
+
+    The RPT records the cache lines prefetched recently. It is used both as a duplicate filter (a line that is already in the RPT is not prefetched again) and by the accuracy checker described below.
 
     \item \textbf{Threshold for Accuracy Throttling:}
     \begin{itemize}
-        \item \textbf{What:} Accuracy throttling evaluates the usefulness of issued prefetches dynamically over sliding evaluation epochs of $\text{ACC\_CHECK\_INTERVAL} = 256$ issued prefetches using hardware performance counters ($\Delta \text{pf\_useful}$ and $\Delta \text{pf\_issued}$):
+        \item \textbf{What:} Accuracy is evaluated over epochs of 256 prefetches (\texttt{EPOCH\_PREFETCHES}). A prefetch is counted once it fills the L1D (or when a demand load catches it in flight), and it is counted as useful when a demand load hits the prefetched line in the RPT. At the end of each epoch:
         \begin{equation}
-            \text{Accuracy} = \frac{\Delta \text{pf\_useful}}{\Delta \text{pf\_issued}} \times 100\%
+            \text{Accuracy} = \frac{\text{useful prefetches in epoch}}{256} \times 100\%
         \end{equation}
-        The prefetcher partitions operation into four accuracy regions using three static decision thresholds:
+        Both counters are then reset. Three static thresholds divide accuracy into four regions:
         \begin{itemize}
-            \item \textbf{High Accuracy ($\ge 70\%$):} Prefetches are hitting with high probability.
-            \item \textbf{Medium Accuracy ($45\% \le \text{Accuracy} < 70\%$):} Good prefetch usefulness with modest miss penalty.
-            \item \textbf{Low Accuracy ($25\% \le \text{Accuracy} < 45\%$):} Marginal prefetch usefulness; higher risk of displacing active cache lines.
-            \item \textbf{Critical / Poor Accuracy ($< 25\%$):} Fewer than 1 in 4 prefetches hit; prefetching is predominantly causing cache pollution and queue contention.
+            \item \textbf{High Accuracy ($\ge 75\%$):} at least three out of four prefetches are used.
+            \item \textbf{Medium Accuracy ($50\% \le \text{Accuracy} < 75\%$):} most prefetches are used.
+            \item \textbf{Low Accuracy ($25\% \le \text{Accuracy} < 50\%$):} at most half of the prefetches are used; a higher risk of displacing useful lines.
+            \item \textbf{Poor Accuracy ($< 25\%$):} fewer than one in four prefetches is used; prefetching mostly causes pollution and queue contention.
         \end{itemize}
-        
-        \item \textbf{Why:} An interval of 256 prefetches provides agile tracking of rapid application phase shifts while dampening transient noise. The chosen thresholds (70\%, 45\%, and 25\%) balance memory latency hiding against cache pollution:
+
+        \item \textbf{Why:} An epoch of 256 prefetches follows program phase changes quickly while averaging out short bursts. The thresholds are evenly spaced quarters, which keeps the hardware comparison trivial (the useful count compared against 64, 128, and 192) and balances memory latency hiding against cache pollution:
         \begin{itemize}
-            \item When accuracy exceeds 70\%, prefetching is highly effective and rarely evicts useful demand lines, justifying aggressive lookahead.
-            \item In the 45\%--70\% range, moderate prefetching provides substantial coverage without congesting L1D MSHR entries.
-            \item When accuracy falls below 25\%, more than 75\% of prefetched lines are evicting demand data before being used, necessitating strict throttling to prevent severe IPC degradation.
+            \item Above 75\%, prefetching rarely evicts useful demand lines, which justifies the deepest lookahead.
+            \item Between 50\% and 75\%, moderate prefetching gives good coverage without congesting the L1D MSHRs.
+            \item Below 25\%, more than three quarters of the prefetched lines are never used, so the degree is reduced to the minimum.
         \end{itemize}
     \end{itemize}
 
     \item \textbf{Prefetch Degrees for the Different Accuracy Ranges:}
-    
-    \begin{table}[H]
+
+ \begin{table}[H]
 \centering
+\small
 \caption{Prefetch degrees assigned to each dynamic accuracy range.}
 \label{tab:spp-degree-throttling}
-\begin{tabular}{lcl}
+\begin{tabularx}{\textwidth}{@{}l c >{\raggedright\arraybackslash}X@{}}
 \toprule
 Accuracy Range & Prefetch Degree & Operating Mode / Rationale \\
 \midrule
-$\ge 70\%$ & 4 & Aggressive prefetching; chains deep lookahead to hide long memory latency \\
-$45\% \le \text{Accuracy} < 70\%$ & 3 & Balanced prefetching; matches standard IP-stride aggressiveness \\
-$25\% \le \text{Accuracy} < 45\%$ & 2 & Conservative lookahead; curbs speculative depth to limit cache pollution \\
-$< 25\%$ & 1 & Heavy throttling; issues only the immediate next block to prevent thrashing \\
+$\geq 75\%$ & 4 &
+Aggressive prefetching; chains deep lookahead to hide long memory latency \\
+
+$50\% \leq \text{Accuracy} < 75\%$ & 3 &
+Balanced prefetching; matches standard IP-stride aggressiveness \\
+
+$25\% \leq \text{Accuracy} < 50\%$ & 2 &
+Conservative lookahead; curbs speculative depth to limit cache pollution \\
+
+$< 25\%$ & 1 &
+Heavy throttling; issues only the immediate next block to prevent thrashing \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
+
+    The prefetcher starts at degree 2 and moves to the degree of the measured accuracy range at the end of every epoch.
 
     \textbf{Rationale for Selected Degrees:}
     \begin{itemize}
-        \item \textbf{Degree 4 ($\ge 70\%$):} When confidence and accuracy are high, chaining lookahead through 4 consecutive strides in the Pattern Table (e.g., $(+1, +2, +2, +2)$) pulls data far in advance, completely overlapping L1 miss latency (~10--15 CPU cycles to L2) without stalling the execution core.
-        \item \textbf{Degree 3 ($45\% \le \text{Accuracy} < 70\%$):} Serves as the balanced operating baseline (matching the default degree of IP-stride). It maintains high bandwidth throughput while staying comfortably within the L1D prefetch queue capacity (PQ size of 16 entries).
-        \item \textbf{Degree 2 ($25\% \le \text{Accuracy} < 45\%$):} Reduces speculative lookahead depth when stride transitions become irregular. Fetching only 2 blocks bounds cache line displacement while still prefetching ahead of the CPU demand stream by one extra cache line.
-        \item \textbf{Degree 1 ($< 25\%$):} Acts as a protective lower bound. Rather than turning off prefetching entirely (which would prevent the Pattern Table from training and recovering when the program enters a new phase), Degree 1 only probes the immediate single stride, maintaining zero cache thrashing until accuracy improves.
+        \item \textbf{Degree 4 ($\ge 75\%$):} When accuracy is high, chaining lookahead through 4 consecutive strides in the Pattern Table (e.g., $(+1, +2, +2, +2)$) pulls data far in advance, overlapping the L1D miss latency (15 cycles to the L2) without stalling the execution core.
+        \item \textbf{Degree 3 ($50\% \le \text{Accuracy} < 75\%$):} Serves as the balanced operating point (matching the degree of IP-stride). It keeps prefetch bandwidth high while staying comfortably within the L1D prefetch queue capacity (16 entries).
+        \item \textbf{Degree 2 ($25\% \le \text{Accuracy} < 50\%$):} Reduces speculative lookahead depth when stride transitions become irregular. Fetching only 2 blocks bounds cache-line displacement while still prefetching one line further ahead than the minimum.
+        \item \textbf{Degree 1 ($< 25\%$):} Acts as a protective lower bound. Rather than turning prefetching off entirely (which would stop the accuracy checker from observing the prefetcher and recovering when the program enters a new phase), Degree 1 only issues the immediate next predicted line until accuracy improves.
     \end{itemize}
 
 \end{itemize}
@@ -201,60 +264,61 @@ $< 25\%$ & 1 & Heavy throttling; issues only the immediate next block to prevent
 
 \begin{table}[H]
 \centering
-\caption{IPC and speedup comparison for I-RRIP over Baseline (LRU).}
+\caption{IPC and Speedup comparison across Baseline (LRU), RRIP, and I-RRIP.}
 \label{tab:irrip-performance}
-\begin{tabular}{lccc}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccccc}
 \toprule
-Trace & Baseline IPC & I-RRIP IPC & Speedup \\
+& \multicolumn{3}{c}{IPC} & \multicolumn{3}{c}{Speedup over Baseline} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+Trace & Baseline (LRU) & RRIP & I-RRIP & Baseline (LRU) & RRIP & I-RRIP \\
 \midrule
-Trace 1 & 0.2323 & 0.2357 & 1.0148$\times$ (+1.48\%) \\
-Trace 2 & 0.2506 & 0.2603 & 1.0385$\times$ (+3.85\%) \\
-Trace 3 & 0.3820 & 0.3844 & 1.0062$\times$ (+0.62\%) \\
+Trace 1 & 0.2323 & 0.2323 & 0.2357 & 1.0000$\times$ & 1.0001$\times$ (+0.01\%) & 1.0148$\times$ (+1.48\%) \\
+Trace 2 & 0.2506 & 0.2513 & 0.2603 & 1.0000$\times$ & 1.0026$\times$ (+0.26\%) & 1.0385$\times$ (+3.85\%) \\
+Trace 3 & 0.3820 & 0.3816 & 0.3844 & 1.0000$\times$ & 0.9990$\times$ (-0.10\%) & 1.0062$\times$ (+0.62\%) \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \begin{table}[H]
 \centering
-\caption{Comparison of L2 Load MPKI for baseline and I-RRIP.}
+\caption{L2 Load MPKI comparison across Baseline (LRU), RRIP, and I-RRIP.}
 \label{tab:irrip-mpki}
-\begin{tabular}{lcccccc}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccccccc}
 \toprule
-& \multicolumn{3}{c}{Baseline (LRU)}
-& \multicolumn{3}{c}{I-RRIP} \\
-\cmidrule(lr){2-4}
-\cmidrule(lr){5-7}
-Trace & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI \\
+& \multicolumn{3}{c}{Baseline (LRU)} & \multicolumn{3}{c}{RRIP} & \multicolumn{3}{c}{I-RRIP} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+Trace & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI \\
 \midrule
-Trace 1 & 17.7509 & 10.4030 & 7.3479 & 19.0249 & 9.0044 & 10.0204 \\
-Trace 2 & 28.2286 & 19.5298 & 8.6988 & 21.6864 & 9.2780 & 12.4084 \\
-Trace 3 & 3.9592 & 1.1232 & 2.8360 & 3.9884 & 0.7153 & 3.2731 \\
+Trace 1 & 17.7509 & 10.4030 & 7.3479 & 17.6814 & 10.6129 & 7.0684 & 19.0249 & 9.0044 & 10.0204 \\
+Trace 2 & 28.2286 & 19.5298 & 8.6988 & 26.6066 & 18.5456 & 8.0610 & 21.6864 & 9.2780 & 12.4084 \\
+Trace 3 & 3.9592 & 1.1232 & 2.8360 & 4.0443 & 1.1976 & 2.8467 & 3.9884 & 0.7153 & 3.2731 \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth]{plots/task2a/task2a_speedup.png}
-    \caption{Speedup comparison of Baseline, RRIP, and I-RRIP across traces.}
-    \label{fig:speedup}
+    \includegraphics[width=0.85\textwidth]{plots/task2a/task2a_ipc.png}
+    \caption{IPC comparison across Baseline (LRU), RRIP, and I-RRIP across benchmark traces.}
+    \label{fig:task2a-ipc}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/task2a/task2a_instr_mpki.png}
-        \caption{L2 Instruction MPKI}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/task2a/task2a_data_mpki.png}
-        \caption{L2 Data MPKI}
-    \end{subfigure}
-    \caption{L2 Load MPKI breakdown for Baseline, RRIP, and I-RRIP.}
-    \label{fig:mpki}
+    \includegraphics[width=0.85\textwidth]{plots/task2a/task2a_speedup.png}
+    \caption{Speedup comparison of Baseline (LRU), RRIP, and I-RRIP across benchmark traces.}
+    \label{fig:task2a-speedup}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{plots/task2a/task2a_mpki_comparison.png}
+    \caption{L2 Load MPKI breakdown for Baseline (LRU), RRIP, and I-RRIP: (a) Total L2C Load MPKI, (b) L2 Instruction Load MPKI, and (c) L2 Data Load MPKI.}
+    \label{fig:task2a-mpki}
 \end{figure}
 
 \subsubsection{Rationale Behind Insertion Policy}
@@ -276,6 +340,7 @@ Standard RRIP chooses the first line with $RRPV = 3$ and increments all lines if
 This prioritization dramatically cuts instruction misses: on Trace 2, Instruction MPKI drops from 19.53 to 9.28 (a 52.5\% reduction), raising IPC from 0.2506 to 0.2603 (+3.85\% speedup).
 
 \subsection{Dynamic I-RRIP}
+\label{sec:dyn-irrip}
 \subsubsection{Sensitivity Study of Decision Threshold}
 
 \begin{table}[H]
@@ -311,25 +376,44 @@ Trace 3 & 0.35 & 0.3825 & 1.0013$\times$ & 4.0578 & 1.0441 & 3.0137 \\
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth]{plots/task2b/task2b_speedup_sensitivity.png}
-    \caption{Dynamic I-RRIP Speedup vs Decision Threshold ($\theta$).}
-    \label{fig:dyn-irrip-sensitivity}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_ipc_sensitivity.png}
+        \caption{IPC vs Decision Threshold ($\theta$)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_speedup_sensitivity.png}
+        \caption{Speedup vs Decision Threshold ($\theta$)}
+    \end{subfigure}
+    \caption{Performance sensitivity of Dynamic I-RRIP across 5 decision thresholds ($\theta \in \{0.15, 0.20, 0.25, 0.30, 0.35\}$).}
+    \label{fig:dyn-irrip-perf-sensitivity}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{plots/task2b/task2b_mpki_sensitivity.png}
+    \caption{Load MPKI sensitivity of Dynamic I-RRIP across decision thresholds: (a) Total L2C Load MPKI, (b) L2 Instruction Load MPKI, and (c) L2 Data Load MPKI.}
+    \label{fig:dyn-irrip-mpki-sensitivity}
 \end{figure}
 
 \subsubsection{IPC, Speedup, and Load MPKI Results}
 
 \begin{table}[H]
 \centering
-\caption{Performance comparison of Baseline, RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
+\caption{Performance comparison (IPC and Speedup) across Baseline (LRU), RRIP, Static I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
 \label{tab:dyn-irrip-performance}
 \resizebox{\textwidth}{!}{
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccccccc}
 \toprule
-Trace & Baseline IPC & RRIP IPC & Dynamic I-RRIP IPC & RRIP Speedup & Dynamic I-RRIP Speedup \\
+& \multicolumn{4}{c}{IPC} & \multicolumn{4}{c}{Speedup over Baseline} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9}
+Trace & Baseline & RRIP & Static I-RRIP & Dyn I-RRIP & Baseline & RRIP & Static I-RRIP & Dyn I-RRIP \\
 \midrule
-Trace 1 & 0.2323 & 0.2323 & 0.2356 & 1.0001$\times$ & 1.0143$\times$ (+1.43\%) \\
-Trace 2 & 0.2506 & 0.2513 & 0.2594 & 1.0026$\times$ & 1.0350$\times$ (+3.50\%) \\
-Trace 3 & 0.3820 & 0.3816 & 0.3823 & 0.9990$\times$ & 1.0008$\times$ (+0.08\%) \\
+Trace 1 & 0.2323 & 0.2323 & 0.2357 & 0.2356 & 1.0000$\times$ & 1.0001$\times$ & 1.0148$\times$ & 1.0143$\times$ (+1.43\%) \\
+Trace 2 & 0.2506 & 0.2513 & 0.2603 & 0.2594 & 1.0000$\times$ & 1.0026$\times$ & 1.0385$\times$ & 1.0350$\times$ (+3.50\%) \\
+Trace 3 & 0.3820 & 0.3816 & 0.3844 & 0.3823 & 1.0000$\times$ & 0.9990$\times$ & 1.0062$\times$ & 1.0008$\times$ (+0.08\%) \\
 \bottomrule
 \end{tabular}
 }
@@ -337,28 +421,52 @@ Trace 3 & 0.3820 & 0.3816 & 0.3823 & 0.9990$\times$ & 1.0008$\times$ (+0.08\%) \
 
 \begin{table}[H]
 \centering
-\caption{Load MPKI comparison for RRIP and Dynamic I-RRIP ($\theta = 0.25$).}
+\caption{L2 Load MPKI breakdown across all evaluated replacement policies.}
 \label{tab:dyn-irrip-mpki}
-\begin{tabular}{lcccccc}
+\begin{tabular}{llccc}
 \toprule
-& \multicolumn{3}{c}{RRIP}
-& \multicolumn{3}{c}{Dynamic I-RRIP ($\theta = 0.25$)} \\
-\cmidrule(lr){2-4}
-\cmidrule(lr){5-7}
-Trace & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI \\
+Trace & Configuration & L2C Load MPKI & L2 Instruction MPKI & L2 Data MPKI \\
 \midrule
-Trace 1 & 17.6814 & 10.6129 & 7.0684 & 18.9378 & 9.0335 & 9.9042 \\
-Trace 2 & 26.6066 & 18.5456 & 8.0610 & 21.4116 & 9.7580 & 11.6536 \\
-Trace 3 & 4.0443 & 1.1976 & 2.8467 & 4.0617 & 0.9802 & 3.0815 \\
+Trace 1 & Baseline (LRU)                 & 17.7509 & 10.4030 & 7.3479 \\
+        & RRIP                           & 17.6814 & 10.6129 & 7.0684 \\
+        & Static I-RRIP                  & 19.0249 & 9.0044  & 10.0204 \\
+        & Dynamic I-RRIP ($\theta=0.25$) & 18.9378 & 9.0335  & 9.9042 \\
+\midrule
+Trace 2 & Baseline (LRU)                 & 28.2286 & 19.5298 & 8.6988 \\
+        & RRIP                           & 26.6066 & 18.5456 & 8.0610 \\
+        & Static I-RRIP                  & 21.6864 & 9.2780  & 12.4084 \\
+        & Dynamic I-RRIP ($\theta=0.25$) & 21.4116 & 9.7580  & 11.6536 \\
+\midrule
+Trace 3 & Baseline (LRU)                 & 3.9592  & 1.1232  & 2.8360 \\
+        & RRIP                           & 4.0443  & 1.1976  & 2.8467 \\
+        & Static I-RRIP                  & 3.9884  & 0.7153  & 3.2731 \\
+        & Dynamic I-RRIP ($\theta=0.25$) & 4.0617  & 0.9802  & 3.0815 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{plots/task2b/task2b_policy_comparison.png}
-    \caption{Comparison of Speedup, L2 Instruction MPKI, and L2 Data MPKI across Baseline, pure RRIP, pure I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
-    \label{fig:dyn-irrip-comparison}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_ipc_comparison.png}
+        \caption{IPC Comparison}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_speedup_comparison.png}
+        \caption{Speedup Comparison}
+    \end{subfigure}
+    \caption{Performance comparison (IPC and Speedup) across Baseline (LRU), RRIP, Static I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
+    \label{fig:dyn-irrip-perf-comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{plots/task2b/task2b_mpki_comparison.png}
+    \caption{L2 Load MPKI breakdown across Baseline (LRU), RRIP, Static I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$): (a) Total L2C Load MPKI, (b) L2 Instruction Load MPKI, and (c) L2 Data Load MPKI.}
+    \label{fig:dyn-irrip-mpki-comparison}
 \end{figure}
 
 \subsubsection{Rationale for the Number of Leader Sets and Decision Logic}
@@ -372,7 +480,7 @@ Trace 3 & 4.0443 & 1.1976 & 2.8467 & 4.0617 & 0.9802 & 3.0815 \\
     If $\text{Ratio} > \theta$, the follower sets operate in I-RRIP mode (prioritizing instruction lines in insertion and eviction). When $\text{Ratio} \le \theta$, follower sets fall back to standard RRIP mode.
     \item \textbf{Dynamic Phase Tracking and Aging:} To allow the policy to adapt rapidly to application phase changes and prevent counter saturation, all four leader counters are halved (right-shifted by 1) whenever $\text{leader\_total\_access}$ reaches an epoch of 4096 accesses. This decaying window prevents stale execution history from dominating future replacement decisions.
     \item \textbf{Threshold Sensitivity Analysis:}
-    As seen in Table~\ref{tab:dyn-irrip-threshold} and Figure~\ref{fig:dyn-irrip-sensitivity}, lower thresholds ($\theta = 0.15, 0.20$) allow follower sets to activate I-RRIP aggressively, yielding maximum instruction miss reduction (Trace 2 Instr MPKI drops from 18.55 down to 9.54, giving 1.0357$\times$ speedup). As the threshold is increased to 0.35, the policy becomes more conservative, falling back to RRIP more often, which slightly raises instruction MPKI but curtails data miss increases (on Trace 1, Data MPKI drops from 9.91 to 9.22). Threshold $\theta = 0.25$ provides an ideal balance across workloads.
+    As seen in Table~\ref{tab:dyn-irrip-threshold} and Figures~\ref{fig:dyn-irrip-perf-sensitivity} and~\ref{fig:dyn-irrip-mpki-sensitivity}, lower thresholds ($\theta = 0.15, 0.20$) allow follower sets to activate I-RRIP aggressively, yielding maximum instruction miss reduction (Trace 2 Instr MPKI drops from 18.55 down to 9.54, giving 1.0357$\times$ speedup). As the threshold is increased to 0.35, the policy becomes more conservative, falling back to RRIP more often, which slightly raises instruction MPKI but curtails data miss increases (on Trace 1, Data MPKI drops from 9.91 to 9.22). Threshold $\theta = 0.25$ provides an ideal balance across workloads.
 \end{itemize}
 
 
@@ -389,20 +497,20 @@ Trace 3 & 4.0443 & 1.1976 & 2.8467 & 4.0617 & 0.9802 & 3.0815 \\
 \toprule
 Trace & Configuration & IPC & Speedup & Accuracy & Coverage & L1D MPKI & L2C MPKI & L2I MPKI & L2D MPKI \\
 \midrule
-Trace 1 & Baseline & 0.2321 & 1.0000$\times$ & -- & -- & 10.6788 & 17.7251 & 10.3665 & 7.3586 \\
-        & SPP & 0.2338 & 1.0073$\times$ & 53.48\% & 9.26\% & 9.6901 & 16.9386 & 10.4200 & 6.5186 \\
-        & Dynamic I-RRIP & 0.2324 & 1.0014$\times$ & -- & -- & 10.6789 & 17.4772 & 10.2429 & 7.2343 \\
-        & \textbf{SPP + Dynamic I-RRIP} & \textbf{0.2343} & \textbf{1.0092$\times$} & 53.53\% & 9.26\% & 9.6902 & 16.6096 & 10.2223 & 6.3873 \\
+Trace 1 & Baseline & 0.2323 & 1.0000$\times$ & -- & -- & 10.6782 & 17.7509 & 10.4030 & 7.3479 \\
+        & SPP & 0.2339 & 1.0071$\times$ & 53.63\% & 9.28\% & 9.6877 & 16.9328 & 10.4213 & 6.5115 \\
+        & Dynamic I-RRIP & 0.2356 & 1.0143$\times$ & -- & -- & 10.6802 & 18.9378 & 9.0335 & 9.9042 \\
+        & \textbf{SPP + Dynamic I-RRIP} & \textbf{0.2379} & \textbf{1.0243$\times$} & 53.17\% & 9.14\% & 9.7019 & 17.8633 & 9.0358 & 8.8276 \\
 \midrule
-Trace 2 & Baseline & 0.2500 & 1.0000$\times$ & -- & -- & 13.5372 & 28.5496 & 19.8440 & 8.7056 \\
-        & SPP & 0.2511 & 1.0046$\times$ & 46.03\% & 2.45\% & 13.2056 & 28.4368 & 20.0366 & 8.4002 \\
-        & Dynamic I-RRIP & 0.2550 & 1.0201$\times$ & -- & -- & 13.5413 & 23.7324 & 14.6092 & 9.1232 \\
-        & \textbf{SPP + Dynamic I-RRIP} & \textbf{0.2564} & \textbf{1.0255$\times$} & 45.34\% & 2.38\% & 13.2157 & 23.4646 & 14.6674 & 8.7972 \\
+Trace 2 & Baseline & 0.2506 & 1.0000$\times$ & -- & -- & 13.5363 & 28.2286 & 19.5298 & 8.6988 \\
+        & SPP & 0.2518 & 1.0048$\times$ & 46.27\% & 2.47\% & 13.2022 & 28.1228 & 19.7253 & 8.3975 \\
+        & Dynamic I-RRIP & 0.2594 & 1.0350$\times$ & -- & -- & 13.5458 & 21.4116 & 9.7580 & 11.6536 \\
+        & \textbf{SPP + Dynamic I-RRIP} & \textbf{0.2610} & \textbf{1.0412$\times$} & 45.23\% & 2.31\% & 13.2230 & 21.0860 & 9.7211 & 11.3650 \\
 \midrule
-Trace 3 & Baseline & 0.3819 & 1.0000$\times$ & -- & -- & 3.4036 & 3.9612 & 1.1265 & 2.8347 \\
-        & SPP & 0.3883 & 1.0168$\times$ & 44.96\% & 14.37\% & 2.9145 & 3.3203 & 1.1435 & 2.1768 \\
-        & Dynamic I-RRIP & 0.3818 & 0.9998$\times$ & -- & -- & 3.4037 & 3.9112 & 1.0898 & 2.8214 \\
-        & \textbf{SPP + Dynamic I-RRIP} & \textbf{0.3884} & \textbf{1.0172$\times$} & 44.96\% & 14.45\% & 2.9116 & 3.2278 & 1.0792 & 2.1486 \\
+Trace 3 & Baseline & 0.3820 & 1.0000$\times$ & -- & -- & 3.4032 & 3.9592 & 1.1232 & 2.8360 \\
+        & SPP & 0.3885 & 1.0170$\times$ & 44.76\% & 14.32\% & 2.9160 & 3.3202 & 1.1406 & 2.1796 \\
+        & Dynamic I-RRIP & 0.3823 & 1.0008$\times$ & -- & -- & 3.4034 & 4.0617 & 0.9802 & 3.0815 \\
+        & \textbf{SPP + Dynamic I-RRIP} & \textbf{0.3888} & \textbf{1.0179$\times$} & 45.32\% & 14.44\% & 2.9118 & 3.4037 & 0.9834 & 2.4203 \\
 \bottomrule
 \end{tabular}
 }
@@ -469,18 +577,39 @@ Trace 3 & Baseline & 0.3819 & 1.0000$\times$ & -- & -- & 3.4036 & 3.9612 & 1.126
 \end{figure}
 
 \subsubsection{Rationale Behind Prefetch-Aware Replacement Policy}
-When an aggressive data prefetcher like the Stride Pattern Prefetcher (SPP) operates at the L1D level alongside an instruction-conscious replacement policy at the L2 cache, naive cache replacement creates acute inter-stream interference:
+The Dynamic I-RRIP policy of Section~\ref{sec:dyn-irrip} ($\theta = 0.25$, 32 leader sets) is extended with four rules that apply only to requests whose packet type is \texttt{PREFETCH}. Without a data prefetcher no such requests reach the L2, so the policy then behaves exactly as in Task 2B; we verified that the Dynamic I-RRIP rows of Table~\ref{tab:task3-performance} are identical to the $\theta = 0.25$ results of Table~\ref{tab:dyn-irrip-performance}.
 \begin{itemize}
-    \item \textbf{Preventing Instruction Eviction by Speculative Prefetches:} Prefetched data blocks brought into the cache hierarchy are speculative. If prefetch requests are inserted with high retention priority ($RRPV = 0$ or $1$), speculative prefetch streams can flood L2 sets and prematurely evict critical instruction lines. Because CPU execution strictly stalls on instruction cache misses, evicting instruction lines destroys the performance benefits achieved by prefetching.
-    \item \textbf{Differentiated Insertion Policy ($RRPV = 2$):} In the prefetch-aware Dynamic I-RRIP policy, incoming cache blocks are inspected for their packet type. Demand instruction lines are prioritized with $RRPV = 1$, regular demand data lines are inserted with $RRPV = 2$, and prefetch lines (`type == PREFETCH`) are inserted with $RRPV = 2$ (distant re-reference prediction). This guarantees that speculative prefetch lines are placed at a distance from the MRU position and must prove their usefulness before displacing active instruction or demand data working sets.
-    \item \textbf{Hit Promotion on Useful Demand Accesses ($RRPV = 0$):} When a prefetch block successfully experiences a demand hit (becoming a useful prefetch), it transitions to regular active data status and is promoted to $RRPV = 0$. This ensures that prefetches that successfully capture access patterns receive maximum retention priority.
-    \item \textbf{Victim Selection Prioritization:} During eviction, lines with $RRPV = 3$ are chosen such that unreferenced prefetch lines are evicted before instruction lines or active demand data lines. This acts as an organic filtering mechanism that purges inaccurate or untimely prefetches without cache pollution.
-    \item \textbf{Demonstrated Synergy and Performance Gains:} As evidenced by the results in Table~\ref{tab:task3-performance}, incorporating prefetch awareness enables the combined system to outperform both standalone SPP and standalone Dynamic I-RRIP across all benchmarks:
-    \begin{itemize}
-        \item On \textbf{Trace 1}, IPC increases to \textbf{0.2343} (+0.92\% speedup over baseline), surpassing both standalone SPP (0.2338) and standalone Dynamic I-RRIP (0.2324).
-        \item On \textbf{Trace 2}, where instruction misses dominate, Dynamic I-RRIP slashes L2 Instruction MPKI from 19.84 to 14.67, while SPP simultaneously cuts L1D MPKI from 13.54 to 13.22. Working in concert with prefetch awareness, the combined policy reaches an IPC of \textbf{0.2564} (+2.55\% speedup), outperforming both standalone policies.
-        \item On \textbf{Trace 3}, the combined system achieves the highest overall IPC of \textbf{0.3884} (+1.72\% speedup) with a minimal L1D MPKI of 2.91 and L2C MPKI of 3.23.
-    \end{itemize}
+    \item \textbf{Insertion:} Demand lines keep the Task 2B insertion (instruction lines at $RRPV = 1$ and data lines at $RRPV = 2$ in I-RRIP mode, all lines at $RRPV = 2$ in RRIP mode). A line filled by a prefetch is inserted at $RRPV = 2$ and marked with a per-line \emph{prefetched} bit. Because SPP fills the L1D with the same block, the L2 copy is only a backup that matters if the prefetch is useful, so it is never given instruction-level priority.
+    \item \textbf{Promotion:} A \texttt{PREFETCH} request that hits in the L2 does not promote the line, because a prefetch is not evidence of reuse. A demand hit on a prefetched line promotes it to $RRPV = 0$ and clears the prefetched bit; the prefetch was useful and the line is treated as ordinary data from then on.
+    \item \textbf{Eviction:} Before the Task 2B victim search, the policy evicts an unused prefetched line that has reached $RRPV = 3$, so inaccurate prefetches leave the cache before any demand data or instruction line.
+    \item \textbf{Set dueling:} \texttt{PREFETCH} requests are not counted in the leader-set counters. Otherwise prefetch traffic would lower the measured instruction ratio and could switch the follower sets out of I-RRIP mode even though instruction pressure is unchanged.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Effect of prefetch awareness on SPP + Dynamic I-RRIP: the unmodified Task 2B policy, the final policy (prefetches inserted at $RRPV = 2$), and a variant inserting prefetches at $RRPV = 3$.}
+\label{tab:task3-pf-aware}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccccccc}
+\toprule
+& \multicolumn{3}{c}{Not prefetch-aware} & \multicolumn{3}{c}{Prefetch-aware, $RRPV_{pf} = 2$ (final)} & \multicolumn{3}{c}{Prefetch-aware, $RRPV_{pf} = 3$} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+Trace & Speedup & L2I MPKI & L2D MPKI & Speedup & L2I MPKI & L2D MPKI & Speedup & L2I MPKI & L2D MPKI \\
+\midrule
+Trace 1 & 1.0243$\times$ & 9.0256 & 8.8241 & 1.0243$\times$ & 9.0358 & 8.8276 & 1.0229$\times$ & 9.0530 & 8.8246 \\
+Trace 2 & 1.0408$\times$ & 9.8470 & 11.3506 & 1.0412$\times$ & 9.7211 & 11.3650 & 1.0421$\times$ & 9.6820 & 11.3446 \\
+Trace 3 & 1.0181$\times$ & 1.0034 & 2.3762 & 1.0179$\times$ & 0.9834 & 2.4203 & 1.0177$\times$ & 0.9816 & 2.4161 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\textbf{Results and discussion:}
+\begin{itemize}
+    \item \textbf{The combination beats both components on every trace} (Table~\ref{tab:task3-performance}). SPP and Dynamic I-RRIP remove different misses: SPP lowers L1D and L2 data misses, while Dynamic I-RRIP lowers L2 instruction misses. On \textbf{Trace 1} the combined IPC is \textbf{0.2379} ($1.0243\times$) against 0.2339 for SPP and 0.2356 for Dynamic I-RRIP. On \textbf{Trace 2}, where instruction misses dominate, the combination keeps both benefits: L2 instruction MPKI falls from 19.53 to 9.72 (the Dynamic I-RRIP effect) and L1D MPKI falls from 13.54 to 13.22 (the SPP effect), giving an IPC of \textbf{0.2610} ($1.0412\times$). On \textbf{Trace 3}, which is data-bound, most of the gain comes from SPP, and the combination reaches \textbf{0.3888} ($1.0179\times$).
+    \item \textbf{SPP accuracy and coverage are essentially unchanged} by the L2 policy (within about 1 percentage point), because the prefetcher trains on L1D accesses and its usefulness is measured at the L1D.
+    \item \textbf{Prefetch awareness has a small effect} (Table~\ref{tab:task3-pf-aware}). The final policy lowers L2 instruction MPKI on Trace 2 (9.85 to 9.72) and Trace 3 (1.00 to 0.98), but speedups stay within 0.05\% of the unmodified policy. The reason is the low prefetch volume reaching the L2: \texttt{PREFETCH} requests are only 7.9\%, 1.6\%, and 15.1\% of L2 read requests on Traces 1, 2, and 3, so there is little prefetch pollution for the policy to remove.
+    \item \textbf{Choice of $RRPV_{pf} = 2$:} Inserting prefetches at $RRPV = 3$ protects instructions slightly more on Trace 2 (L2 instruction MPKI 9.68 vs 9.72) but is slower on Traces 1 and 3. The two settings are within 0.15\% on every trace, and $RRPV = 2$ gives the higher mean speedup ($1.0278\times$ vs $1.0276\times$), so it is used as the final configuration.
 \end{itemize}
 
  

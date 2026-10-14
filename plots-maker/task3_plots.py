@@ -25,55 +25,56 @@ TRACES = ["Trace 1", "Trace 2", "Trace 3"]
 # Use one consistent format for accuracy and coverage:
 # fractions (0–1) OR percentages (0–100).
 
-# Source: champsim/results/task3/*.txt (25M warmup + 25M sim instructions).
+# Source: champsim/results/final/*.txt (25M warmup + 25M sim instructions,
+# run from traces/ so the seed matches the Task 2 runs).
 # accuracy (%) = L1D useful prefetches / prefetches issued to lower level
 # coverage (%) = (baseline L1D load misses - L1D load misses) / baseline L1D load misses
 # Configurations without a prefetcher have accuracy and coverage 0.
 
 DATA = {
     "Baseline": {
-        "ipc":             [0.232113, 0.249982, 0.381868],
+        "ipc":             [0.232288, 0.250638, 0.382008],
         "speedup":         [1.0, 1.0, 1.0],
         "accuracy":        [0.0, 0.0, 0.0],
         "coverage":        [0.0, 0.0, 0.0],
-        "l1d_load_mpki":   [10.6788, 13.5372, 3.40356],
-        "l2c_load_mpki":   [17.7251, 28.5496, 3.96124],
-        "l2i_load_mpki":   [10.3665, 19.844, 1.12652],
-        "l2d_load_mpki":   [7.35864, 8.7056, 2.83472],
+        "l1d_load_mpki":   [10.6782, 13.5363, 3.40324],
+        "l2c_load_mpki":   [17.7509, 28.2286, 3.95916],
+        "l2i_load_mpki":   [10.403, 19.5298, 1.12316],
+        "l2d_load_mpki":   [7.34788, 8.6988, 2.836],
     },
 
     "SPP": {
-        "ipc":             [0.233796, 0.251126, 0.388273],
-        "speedup":         [1.0073, 1.0046, 1.0168],
-        "accuracy":        [53.48, 46.03, 44.96],
-        "coverage":        [9.26, 2.45, 14.37],
-        "l1d_load_mpki":   [9.69012, 13.2056, 2.91452],
-        "l2c_load_mpki":   [16.9386, 28.4368, 3.32028],
-        "l2i_load_mpki":   [10.42, 20.0366, 1.14348],
-        "l2d_load_mpki":   [6.5186, 8.40016, 2.1768],
+        "ipc":             [0.233928, 0.251841, 0.388507],
+        "speedup":         [1.0071, 1.0048, 1.017],
+        "accuracy":        [53.63, 46.27, 44.76],
+        "coverage":        [9.28, 2.47, 14.32],
+        "l1d_load_mpki":   [9.68772, 13.2022, 2.916],
+        "l2c_load_mpki":   [16.9328, 28.1228, 3.32016],
+        "l2i_load_mpki":   [10.4213, 19.7253, 1.14056],
+        "l2d_load_mpki":   [6.51148, 8.39748, 2.1796],
     },
 
     "Dynamic I-RRIP": {
-        "ipc":             [0.232427, 0.255004, 0.381807],
-        "speedup":         [1.0014, 1.0201, 0.9998],
+        "ipc":             [0.235618, 0.259407, 0.382299],
+        "speedup":         [1.0143, 1.035, 1.0008],
         "accuracy":        [0.0, 0.0, 0.0],
         "coverage":        [0.0, 0.0, 0.0],
-        "l1d_load_mpki":   [10.6789, 13.5413, 3.40368],
-        "l2c_load_mpki":   [17.4772, 23.7324, 3.9112],
-        "l2i_load_mpki":   [10.2429, 14.6092, 1.08976],
-        "l2d_load_mpki":   [7.23432, 9.12316, 2.82144],
+        "l1d_load_mpki":   [10.6802, 13.5458, 3.4034],
+        "l2c_load_mpki":   [18.9378, 21.4116, 4.06168],
+        "l2i_load_mpki":   [9.03352, 9.75796, 0.98016],
+        "l2d_load_mpki":   [9.90424, 11.6536, 3.08152],
     },
 
     "SPP + Dynamic I-RRIP": {
-        "ipc":             [0.234257, 0.256352, 0.388424],
-        "speedup":         [1.0092, 1.0255, 1.0172],
-        "accuracy":        [53.53, 45.34, 44.96],
-        "coverage":        [9.26, 2.38, 14.45],
-        "l1d_load_mpki":   [9.69016, 13.2157, 2.9116],
-        "l2c_load_mpki":   [16.6096, 23.4646, 3.22784],
-        "l2i_load_mpki":   [10.2223, 14.6674, 1.07924],
-        "l2d_load_mpki":   [6.38728, 8.79716, 2.1486],
-    }
+        "ipc":             [0.237936, 0.260965, 0.388846],
+        "speedup":         [1.0243, 1.0412, 1.0179],
+        "accuracy":        [53.17, 45.23, 45.32],
+        "coverage":        [9.14, 2.31, 14.44],
+        "l1d_load_mpki":   [9.70192, 13.223, 2.91184],
+        "l2c_load_mpki":   [17.8633, 21.086, 3.40372],
+        "l2i_load_mpki":   [9.03576, 9.72108, 0.98344],
+        "l2d_load_mpki":   [8.82756, 11.365, 2.42028],
+    },
 }
 
 # ============================================================
