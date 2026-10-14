@@ -986,6 +986,7 @@ int main(int argc, char** argv)
 
     // check to see if knobs changed using getopt_long()
     int c, index;
+    index = 0;
     while (1) {
         static struct option long_options[] =
         {
@@ -1123,13 +1124,13 @@ int main(int argc, char** argv)
             }
 
             //printf("max count_str: %d\n", count_str);
-            //printf("application: %s\n", pch[count_str-3]);
-
-            int j = 0;
-            while (pch[count_str-3][j] != '\0') {
-                seed_number += pch[count_str-3][j];
-                //printf("%c %d %d\n", pch[count_str-3][j], j, seed_number);
-                j++;
+            int a_idx = (count_str >= 3) ? (count_str - 3) : (count_str > 0 ? 0 : -1);
+            if (a_idx >= 0 && pch[a_idx] != NULL) {
+                int j = 0;
+                while (pch[a_idx][j] != '\0') {
+                    seed_number += pch[a_idx][j];
+                    j++;
+                }
             }
 
             ooo_cpu[count_traces].trace_file = popen(ooo_cpu[count_traces].gunzip_command, "r");
@@ -1377,7 +1378,7 @@ int main(int argc, char** argv)
     // simulation entry point
     start_time = time(NULL);
     uint8_t run_simulation = 1;
-    int cs_index = 0;
+    int cs_index = (knob_context_switch == 1) ? 0 : -1;
     while (run_simulation) {
 
         uint64_t elapsed_second = (uint64_t)(time(NULL) - start_time),
@@ -1497,7 +1498,7 @@ int main(int argc, char** argv)
 	    //cs_index - points the details of next context switch
 	    //operating index - If the core is involved in context-switch, it stores the index of file which has details about the same 
 	    */
-	    if( cs_index!=-1 && ( current_core_cycle[i]==cs_file[cs_index].cycle) && (i==cs_file[cs_index].swap_cpu[0] || i==cs_file[cs_index].swap_cpu[1]))
+	    if( knob_context_switch && cs_index!=-1 && ( current_core_cycle[i]==cs_file[cs_index].cycle) && (i==cs_file[cs_index].swap_cpu[0] || i==cs_file[cs_index].swap_cpu[1]))
 	    {
 		    //ooo_cpu[i].operating_index = cs_file[cs_index].index;
 		    //ooo_cpu[i].context_switch = 1;
@@ -1585,7 +1586,7 @@ int main(int argc, char** argv)
 		//If a core is involved in context-switch, check if ROB occupancy of this core as well as another core is 0. Also, if they have reached same current_core_cycle, swap the contexts of those two cores
 	 	*/
 		
-		if(ooo_cpu[i].operating_index!=-1)
+		if(knob_context_switch && ooo_cpu[i].operating_index!=-1)
 		{
 			cout <<ooo_cpu[cs_file[ooo_cpu[i].operating_index].swap_cpu[0]].ROB.occupancy << " " <<  ooo_cpu[cs_file[ooo_cpu[i].operating_index].swap_cpu[1]].ROB.occupancy << " ";
 			if(ooo_cpu[cs_file[ooo_cpu[i].operating_index].swap_cpu[0]].ROB.occupancy==0 && ooo_cpu[cs_file[ooo_cpu[i].operating_index].swap_cpu[1]].ROB.occupancy==0 && current_core_cycle[cs_file[ooo_cpu[i].operating_index].swap_cpu[0]] == current_core_cycle[cs_file[ooo_cpu[i].operating_index].swap_cpu[1]])
