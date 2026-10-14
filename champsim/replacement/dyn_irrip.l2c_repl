@@ -7,7 +7,15 @@
 #define DYN_THRESHOLD 0.25
 #endif
 
+// Task 3 (prefetch awareness): RRPV at which prefetch fills are inserted.
+// Every prefetch-aware rule below applies only to PREFETCH requests, so without
+// a data prefetcher the policy behaves exactly as the Task 2B Dynamic I-RRIP.
+#ifndef PF_INSERT_RRPV
+#define PF_INSERT_RRPV (maxRRPV - 1) // 2; inserting at 3 was within 0.15% (see report)
+#endif
+
 uint32_t l2_rrpv[L2C_SET][L2C_WAY];
+uint8_t  l2_is_pf[L2C_SET][L2C_WAY]; // line was filled by a prefetch and has not seen a demand hit yet
 
 // Statistics tracked on leader sets (which run pure RRIP)
 uint64_t leader_instr_access = 0;
@@ -41,6 +49,7 @@ void CACHE::l2c_initialize_replacement()
     for (int i=0; i<L2C_SET; i++) {
         for (int j=0; j<L2C_WAY; j++) {
             l2_rrpv[i][j] = maxRRPV;
+            l2_is_pf[i][j] = 0;
         }
     }
 
@@ -56,6 +65,12 @@ uint32_t CACHE::l2c_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, c
     // 1. Look for an invalid line first
     for (int i=0; i<L2C_WAY; i++) {
         if (!current_set[i].valid)
+            return i;
+    }
+
+    // (Task 3) An unused prefetched line at maxRRPV is the cheapest victim
+    for (int i=0; i<L2C_WAY; i++) {
+        if (l2_is_pf[set][i] && l2_rrpv[set][i] >= maxRRPV)
             return i;
     }
 
@@ -117,7 +132,9 @@ uint32_t CACHE::l2c_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, c
 void CACHE::l2c_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t way, uint64_t full_addr, uint64_t ip, uint64_t victim_addr, uint32_t type, uint8_t hit, uint8_t isInstruction)
 {
     // Update leader set statistics for Set-Dueling
-    if (is_leader_set(set)) {
+    // (Task 3) Prefetch requests are not counted, so a data prefetcher cannot dilute
+    // the instruction ratio and switch off instruction protection.
+    if (is_leader_set(set) && type != PREFETCH) {
         leader_total_access++;
         if (!hit)
             leader_total_miss++;
@@ -138,9 +155,21 @@ void CACHE::l2c_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
     }
 
     if (hit) {
-        // Cache hit promotes line to MRU (0)
+        // (Task 3) A prefetch request hitting a line is not evidence of reuse
+        if (type == PREFETCH)
+            return;
+
+        // Cache hit promotes line to MRU (0); a demanded prefetched line becomes ordinary
         l2_rrpv[set][way] = 0;
+        l2_is_pf[set][way] = 0;
     } else {
+        // (Task 3) Prefetch fills are speculative: insert at PF_INSERT_RRPV and mark them
+        l2_is_pf[set][way] = (type == PREFETCH);
+        if (type == PREFETCH) {
+            l2_rrpv[set][way] = PF_INSERT_RRPV;
+            return;
+        }
+
         // Insertion:
         if (use_irrip(set)) {
             // I-RRIP mode: prioritize instructions with intermediate RRPV
