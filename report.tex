@@ -4,24 +4,24 @@
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
+\graphicspath{{./}{./plots/}{./plots/task2a/}{./plots/task2b/}}
 \usepackage{booktabs}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{xcolor}
  
-\usepackage{verbatim} % para el codigo
- 
-\usepackage{amsmath} % para la matematica
+\usepackage{verbatim}
+
+\usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-\usepackage{hyperref} % Turns all TOC entries and references into hyperlinks
-\usepackage{graphicx}
- 
+\usepackage{hyperref}
+
 \hypersetup{
-    colorlinks=true, % Colors the text of the links instead of drawing boxes
-    linkcolor=blue,  % Sets the color for internal links (like the TOC)
-    urlcolor=cyan    % Sets the color for web URLs
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan
 }
  
 \begin{document}
@@ -53,7 +53,7 @@ Thus, it exploits regular memory access patterns to fetch data in advance, while
 \begin{itemize}
     \item \textbf{IPC, Speedup, L1D Load MPKI, Prefetch Accuracy, and Coverage Values:}
     
-    \begin{table}[htbp]
+    \begin{table}[H]
 \centering
 \caption{Performance evaluation of the Stride Pattern Prefetcher (SPP) compared against Baseline.}
 \label{tab:spp-results}
@@ -72,35 +72,35 @@ Trace 3 & 0.3819 & 0.3883 & 1.0168$\times$ (+1.68\%) & 3.4036 & 2.9145 & 44.96\%
 
 For comparison, the reference IP-stride prefetcher achieves an IPC of 0.2331 (1.0043$\times$), 0.2501 (1.0006$\times$), and 0.3827 (1.0021$\times$) on Traces 1, 2, and 3, respectively. SPP consistently outperforms IP-stride across all benchmarks in both speedup and coverage due to its dual pattern classification and multi-stride lookahead capability.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{ipc_plot.png}
     \caption{IPC comparison across Baseline, IP-stride, and SPP.}
     \label{fig:spp-ipc}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{speedup_plot.png}
     \caption{Speedup comparison of SPP against the baseline and IP-stride.}
     \label{fig:spp-speedup}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{mpki_plot.png}
     \caption{L1D Load MPKI comparison across Baseline, IP-stride, and SPP.}
     \label{fig:spp-mpki}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{accuracy_plot.png}
     \caption{Prefetch accuracy across benchmark traces.}
     \label{fig:spp-accuracy}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{coverage_plot.png}
     \caption{L1D prefetch coverage across benchmark traces.}
@@ -110,7 +110,7 @@ For comparison, the reference IP-stride prefetcher achieves an IPC of 0.2331 (1.
     \item \textbf{Total Storage Overhead of Prefetcher:}
     
     The prefetcher consists of two primary hardware tables and a minimal set of control registers:
-    \begin{table}[htbp]
+    \begin{table}[H]
 \centering
 \caption{Bit-level storage overhead of the Stride Pattern Prefetcher (SPP).}
 \label{tab:spp-storage}
@@ -168,7 +168,7 @@ Table & Field & Bits per Entry & Number of Entries & Total Bits \\
 
     \item \textbf{Prefetch Degrees for the Different Accuracy Ranges:}
     
-    \begin{table}[htbp]
+    \begin{table}[H]
 \centering
 \caption{Prefetch degrees assigned to each dynamic accuracy range.}
 \label{tab:spp-degree-throttling}
@@ -199,7 +199,7 @@ $< 25\%$ & 1 & Heavy throttling; issues only the immediate next block to prevent
 \subsection{Instruction-Conscious L2 Replacement Policy (I-RRIP)}
 \subsubsection{IPC, Speedup, and Load MPKI Results}
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{IPC and speedup comparison for I-RRIP over Baseline (LRU).}
 \label{tab:irrip-performance}
@@ -214,7 +214,7 @@ Trace 3 & 0.3820 & 0.3844 & 1.0062$\times$ (+0.62\%) \\
 \end{tabular}
 \end{table}
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Comparison of L2 Load MPKI for baseline and I-RRIP.}
 \label{tab:irrip-mpki}
@@ -233,14 +233,14 @@ Trace 3 & 3.9592 & 1.1232 & 2.8360 & 3.9884 & 0.7153 & 3.2731 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{plots/task2a/task2a_speedup.png}
     \caption{Speedup comparison of Baseline, RRIP, and I-RRIP across traces.}
     \label{fig:speedup}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
@@ -278,7 +278,7 @@ This prioritization dramatically cuts instruction misses: on Trace 2, Instructio
 \subsection{Dynamic I-RRIP}
 \subsubsection{Sensitivity Study of Decision Threshold}
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Sensitivity of Dynamic I-RRIP across 5 decision thresholds ($\theta \in \{0.15, 0.20, 0.25, 0.30, 0.35\}$).}
 \label{tab:dyn-irrip-threshold}
@@ -309,7 +309,7 @@ Trace 3 & 0.35 & 0.3825 & 1.0013$\times$ & 4.0578 & 1.0441 & 3.0137 \\
 }
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{plots/task2b/task2b_speedup_sensitivity.png}
     \caption{Dynamic I-RRIP Speedup vs Decision Threshold ($\theta$).}
@@ -318,7 +318,7 @@ Trace 3 & 0.35 & 0.3825 & 1.0013$\times$ & 4.0578 & 1.0441 & 3.0137 \\
 
 \subsubsection{IPC, Speedup, and Load MPKI Results}
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Performance comparison of Baseline, RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
 \label{tab:dyn-irrip-performance}
@@ -335,7 +335,7 @@ Trace 3 & 0.3820 & 0.3816 & 0.3823 & 0.9990$\times$ & 1.0008$\times$ (+0.08\%) \
 }
 \end{table}
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Load MPKI comparison for RRIP and Dynamic I-RRIP ($\theta = 0.25$).}
 \label{tab:dyn-irrip-mpki}
@@ -354,7 +354,7 @@ Trace 3 & 4.0443 & 1.1976 & 2.8467 & 4.0617 & 0.9802 & 3.0815 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{plots/task2b/task2b_policy_comparison.png}
     \caption{Comparison of Speedup, L2 Instruction MPKI, and L2 Data MPKI across Baseline, pure RRIP, pure I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
@@ -380,7 +380,7 @@ Trace 3 & 4.0443 & 1.1976 & 2.8467 & 4.0617 & 0.9802 & 3.0815 \\
 \subsection{Incorporating SPP with Dynamic I-RRIP}
 \subsubsection{IPC, Speedup, Prefetch Accuracy, Coverage, and Load MPKI Results}
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Performance comparison of Baseline, SPP, Dynamic I-RRIP, and SPP with Dynamic I-RRIP across benchmark traces.}
 \label{tab:task3-performance}
@@ -408,21 +408,21 @@ Trace 3 & Baseline & 0.3819 & 1.0000$\times$ & -- & -- & 3.4036 & 3.9612 & 1.126
 }
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{task3_ipc.png}
     \caption{IPC comparison across Baseline, SPP, Dynamic I-RRIP, and combined SPP + Dynamic I-RRIP.}
     \label{fig:task3-ipc}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{task3_speedup.png}
     \caption{Speedup comparison over Baseline across configurations.}
     \label{fig:task3-speedup}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
@@ -439,7 +439,7 @@ Trace 3 & Baseline & 0.3819 & 1.0000$\times$ & -- & -- & 3.4036 & 3.9612 & 1.126
     \label{fig:task3-pref-acc-cov}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering

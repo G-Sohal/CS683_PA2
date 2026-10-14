@@ -1,49 +1,61 @@
-# ==========================================
-# Traces (do not include or commit traces)
-# ==========================================
-traces/
+# ==============================================================================
+# Traces (Large benchmark trace files - must not be committed to Git)
+# ==============================================================================
+*.gz
+*.xz
+*.bz2
+*.tar
+*.zip
 *.trace
 *.trace.*
-*.champsimtrace
-*.champsimtrace.*
-*.xz
-*.gz
-*.tgz
-*.pcapng
+Trace*
+traces/
 
-# ==========================================
-# Compiled Binaries & Build Artifacts
-# ==========================================
+# ==============================================================================
+# Build Artifacts, Binaries, and Object Files
+# ==============================================================================
 bin/
 obj/
-champsim/bin/
-champsim/obj/
 *.o
-*.d
+*.obj
+*.so
+*.a
 *.out
 *.exe
-champsim/bin/*
+champsim/bin/
+champsim/obj/
 
-# ==========================================
-# Temporary Simulation Output Logs
-# ==========================================
-champsim/*.txt
-!champsim/results/
-
-# ==========================================
-# LaTeX Build Auxiliary Files
-# ==========================================
+# ==============================================================================
+# LaTeX Auxiliary and Temporary Build Files
+# (Preserves source .tex, figures, and final deliverable Summary.pdf)
+# ==============================================================================
 *.aux
 *.log
+*.out
 *.toc
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+*.bbl
+*.blg
+*.nav
+*.snm
+*.vrb
 
-# ==========================================
-# Python / System Cache
-# ==========================================
+# ==============================================================================
+# Python Cache & Bytecode
+# ==============================================================================
 __pycache__/
 *.py[cod]
+*$py.class
+.pytest_cache/
+
+# ==============================================================================
+# Operating System & Editor Metadata
+# ==============================================================================
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
