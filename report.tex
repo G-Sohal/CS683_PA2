@@ -201,60 +201,61 @@ $< 25\%$ & 1 & Heavy throttling; issues only the immediate next block to prevent
 
 \begin{table}[H]
 \centering
-\caption{IPC and speedup comparison for I-RRIP over Baseline (LRU).}
+\caption{IPC and Speedup comparison across Baseline (LRU), RRIP, and I-RRIP.}
 \label{tab:irrip-performance}
-\begin{tabular}{lccc}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccccc}
 \toprule
-Trace & Baseline IPC & I-RRIP IPC & Speedup \\
+& \multicolumn{3}{c}{IPC} & \multicolumn{3}{c}{Speedup over Baseline} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+Trace & Baseline (LRU) & RRIP & I-RRIP & Baseline (LRU) & RRIP & I-RRIP \\
 \midrule
-Trace 1 & 0.2323 & 0.2357 & 1.0148$\times$ (+1.48\%) \\
-Trace 2 & 0.2506 & 0.2603 & 1.0385$\times$ (+3.85\%) \\
-Trace 3 & 0.3820 & 0.3844 & 1.0062$\times$ (+0.62\%) \\
+Trace 1 & 0.2323 & 0.2323 & 0.2357 & 1.0000$\times$ & 1.0001$\times$ (+0.01\%) & 1.0148$\times$ (+1.48\%) \\
+Trace 2 & 0.2506 & 0.2513 & 0.2603 & 1.0000$\times$ & 1.0026$\times$ (+0.26\%) & 1.0385$\times$ (+3.85\%) \\
+Trace 3 & 0.3820 & 0.3816 & 0.3844 & 1.0000$\times$ & 0.9990$\times$ (-0.10\%) & 1.0062$\times$ (+0.62\%) \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \begin{table}[H]
 \centering
-\caption{Comparison of L2 Load MPKI for baseline and I-RRIP.}
+\caption{L2 Load MPKI comparison across Baseline (LRU), RRIP, and I-RRIP.}
 \label{tab:irrip-mpki}
-\begin{tabular}{lcccccc}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccccccc}
 \toprule
-& \multicolumn{3}{c}{Baseline (LRU)}
-& \multicolumn{3}{c}{I-RRIP} \\
-\cmidrule(lr){2-4}
-\cmidrule(lr){5-7}
-Trace & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI \\
+& \multicolumn{3}{c}{Baseline (LRU)} & \multicolumn{3}{c}{RRIP} & \multicolumn{3}{c}{I-RRIP} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+Trace & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI \\
 \midrule
-Trace 1 & 17.7509 & 10.4030 & 7.3479 & 19.0249 & 9.0044 & 10.0204 \\
-Trace 2 & 28.2286 & 19.5298 & 8.6988 & 21.6864 & 9.2780 & 12.4084 \\
-Trace 3 & 3.9592 & 1.1232 & 2.8360 & 3.9884 & 0.7153 & 3.2731 \\
+Trace 1 & 17.7509 & 10.4030 & 7.3479 & 17.6814 & 10.6129 & 7.0684 & 19.0249 & 9.0044 & 10.0204 \\
+Trace 2 & 28.2286 & 19.5298 & 8.6988 & 26.6066 & 18.5456 & 8.0610 & 21.6864 & 9.2780 & 12.4084 \\
+Trace 3 & 3.9592 & 1.1232 & 2.8360 & 4.0443 & 1.1976 & 2.8467 & 3.9884 & 0.7153 & 3.2731 \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth]{plots/task2a/task2a_speedup.png}
-    \caption{Speedup comparison of Baseline, RRIP, and I-RRIP across traces.}
-    \label{fig:speedup}
+    \includegraphics[width=0.85\textwidth]{plots/task2a/task2a_ipc.png}
+    \caption{IPC comparison across Baseline (LRU), RRIP, and I-RRIP across benchmark traces.}
+    \label{fig:task2a-ipc}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/task2a/task2a_instr_mpki.png}
-        \caption{L2 Instruction MPKI}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/task2a/task2a_data_mpki.png}
-        \caption{L2 Data MPKI}
-    \end{subfigure}
-    \caption{L2 Load MPKI breakdown for Baseline, RRIP, and I-RRIP.}
-    \label{fig:mpki}
+    \includegraphics[width=0.85\textwidth]{plots/task2a/task2a_speedup.png}
+    \caption{Speedup comparison of Baseline (LRU), RRIP, and I-RRIP across benchmark traces.}
+    \label{fig:task2a-speedup}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{plots/task2a/task2a_mpki_comparison.png}
+    \caption{L2 Load MPKI breakdown for Baseline (LRU), RRIP, and I-RRIP: (a) Total L2C Load MPKI, (b) L2 Instruction Load MPKI, and (c) L2 Data Load MPKI.}
+    \label{fig:task2a-mpki}
 \end{figure}
 
 \subsubsection{Rationale Behind Insertion Policy}
@@ -311,25 +312,44 @@ Trace 3 & 0.35 & 0.3825 & 1.0013$\times$ & 4.0578 & 1.0441 & 3.0137 \\
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth]{plots/task2b/task2b_speedup_sensitivity.png}
-    \caption{Dynamic I-RRIP Speedup vs Decision Threshold ($\theta$).}
-    \label{fig:dyn-irrip-sensitivity}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_ipc_sensitivity.png}
+        \caption{IPC vs Decision Threshold ($\theta$)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_speedup_sensitivity.png}
+        \caption{Speedup vs Decision Threshold ($\theta$)}
+    \end{subfigure}
+    \caption{Performance sensitivity of Dynamic I-RRIP across 5 decision thresholds ($\theta \in \{0.15, 0.20, 0.25, 0.30, 0.35\}$).}
+    \label{fig:dyn-irrip-perf-sensitivity}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{plots/task2b/task2b_mpki_sensitivity.png}
+    \caption{Load MPKI sensitivity of Dynamic I-RRIP across decision thresholds: (a) Total L2C Load MPKI, (b) L2 Instruction Load MPKI, and (c) L2 Data Load MPKI.}
+    \label{fig:dyn-irrip-mpki-sensitivity}
 \end{figure}
 
 \subsubsection{IPC, Speedup, and Load MPKI Results}
 
 \begin{table}[H]
 \centering
-\caption{Performance comparison of Baseline, RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
+\caption{Performance comparison (IPC and Speedup) across Baseline (LRU), RRIP, Static I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
 \label{tab:dyn-irrip-performance}
 \resizebox{\textwidth}{!}{
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccccccc}
 \toprule
-Trace & Baseline IPC & RRIP IPC & Dynamic I-RRIP IPC & RRIP Speedup & Dynamic I-RRIP Speedup \\
+& \multicolumn{4}{c}{IPC} & \multicolumn{4}{c}{Speedup over Baseline} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9}
+Trace & Baseline & RRIP & Static I-RRIP & Dyn I-RRIP & Baseline & RRIP & Static I-RRIP & Dyn I-RRIP \\
 \midrule
-Trace 1 & 0.2323 & 0.2323 & 0.2356 & 1.0001$\times$ & 1.0143$\times$ (+1.43\%) \\
-Trace 2 & 0.2506 & 0.2513 & 0.2594 & 1.0026$\times$ & 1.0350$\times$ (+3.50\%) \\
-Trace 3 & 0.3820 & 0.3816 & 0.3823 & 0.9990$\times$ & 1.0008$\times$ (+0.08\%) \\
+Trace 1 & 0.2323 & 0.2323 & 0.2357 & 0.2356 & 1.0000$\times$ & 1.0001$\times$ & 1.0148$\times$ & 1.0143$\times$ (+1.43\%) \\
+Trace 2 & 0.2506 & 0.2513 & 0.2603 & 0.2594 & 1.0000$\times$ & 1.0026$\times$ & 1.0385$\times$ & 1.0350$\times$ (+3.50\%) \\
+Trace 3 & 0.3820 & 0.3816 & 0.3844 & 0.3823 & 1.0000$\times$ & 0.9990$\times$ & 1.0062$\times$ & 1.0008$\times$ (+0.08\%) \\
 \bottomrule
 \end{tabular}
 }
@@ -337,28 +357,52 @@ Trace 3 & 0.3820 & 0.3816 & 0.3823 & 0.9990$\times$ & 1.0008$\times$ (+0.08\%) \
 
 \begin{table}[H]
 \centering
-\caption{Load MPKI comparison for RRIP and Dynamic I-RRIP ($\theta = 0.25$).}
+\caption{L2 Load MPKI breakdown across all evaluated replacement policies.}
 \label{tab:dyn-irrip-mpki}
-\begin{tabular}{lcccccc}
+\begin{tabular}{llccc}
 \toprule
-& \multicolumn{3}{c}{RRIP}
-& \multicolumn{3}{c}{Dynamic I-RRIP ($\theta = 0.25$)} \\
-\cmidrule(lr){2-4}
-\cmidrule(lr){5-7}
-Trace & L2C MPKI & L2I MPKI & L2D MPKI & L2C MPKI & L2I MPKI & L2D MPKI \\
+Trace & Configuration & L2C Load MPKI & L2 Instruction MPKI & L2 Data MPKI \\
 \midrule
-Trace 1 & 17.6814 & 10.6129 & 7.0684 & 18.9378 & 9.0335 & 9.9042 \\
-Trace 2 & 26.6066 & 18.5456 & 8.0610 & 21.4116 & 9.7580 & 11.6536 \\
-Trace 3 & 4.0443 & 1.1976 & 2.8467 & 4.0617 & 0.9802 & 3.0815 \\
+Trace 1 & Baseline (LRU)                 & 17.7509 & 10.4030 & 7.3479 \\
+        & RRIP                           & 17.6814 & 10.6129 & 7.0684 \\
+        & Static I-RRIP                  & 19.0249 & 9.0044  & 10.0204 \\
+        & Dynamic I-RRIP ($\theta=0.25$) & 18.9378 & 9.0335  & 9.9042 \\
+\midrule
+Trace 2 & Baseline (LRU)                 & 28.2286 & 19.5298 & 8.6988 \\
+        & RRIP                           & 26.6066 & 18.5456 & 8.0610 \\
+        & Static I-RRIP                  & 21.6864 & 9.2780  & 12.4084 \\
+        & Dynamic I-RRIP ($\theta=0.25$) & 21.4116 & 9.7580  & 11.6536 \\
+\midrule
+Trace 3 & Baseline (LRU)                 & 3.9592  & 1.1232  & 2.8360 \\
+        & RRIP                           & 4.0443  & 1.1976  & 2.8467 \\
+        & Static I-RRIP                  & 3.9884  & 0.7153  & 3.2731 \\
+        & Dynamic I-RRIP ($\theta=0.25$) & 4.0617  & 0.9802  & 3.0815 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{plots/task2b/task2b_policy_comparison.png}
-    \caption{Comparison of Speedup, L2 Instruction MPKI, and L2 Data MPKI across Baseline, pure RRIP, pure I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
-    \label{fig:dyn-irrip-comparison}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_ipc_comparison.png}
+        \caption{IPC Comparison}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/task2b/task2b_speedup_comparison.png}
+        \caption{Speedup Comparison}
+    \end{subfigure}
+    \caption{Performance comparison (IPC and Speedup) across Baseline (LRU), RRIP, Static I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$).}
+    \label{fig:dyn-irrip-perf-comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{plots/task2b/task2b_mpki_comparison.png}
+    \caption{L2 Load MPKI breakdown across Baseline (LRU), RRIP, Static I-RRIP, and Dynamic I-RRIP ($\theta = 0.25$): (a) Total L2C Load MPKI, (b) L2 Instruction Load MPKI, and (c) L2 Data Load MPKI.}
+    \label{fig:dyn-irrip-mpki-comparison}
 \end{figure}
 
 \subsubsection{Rationale for the Number of Leader Sets and Decision Logic}
@@ -372,7 +416,7 @@ Trace 3 & 4.0443 & 1.1976 & 2.8467 & 4.0617 & 0.9802 & 3.0815 \\
     If $\text{Ratio} > \theta$, the follower sets operate in I-RRIP mode (prioritizing instruction lines in insertion and eviction). When $\text{Ratio} \le \theta$, follower sets fall back to standard RRIP mode.
     \item \textbf{Dynamic Phase Tracking and Aging:} To allow the policy to adapt rapidly to application phase changes and prevent counter saturation, all four leader counters are halved (right-shifted by 1) whenever $\text{leader\_total\_access}$ reaches an epoch of 4096 accesses. This decaying window prevents stale execution history from dominating future replacement decisions.
     \item \textbf{Threshold Sensitivity Analysis:}
-    As seen in Table~\ref{tab:dyn-irrip-threshold} and Figure~\ref{fig:dyn-irrip-sensitivity}, lower thresholds ($\theta = 0.15, 0.20$) allow follower sets to activate I-RRIP aggressively, yielding maximum instruction miss reduction (Trace 2 Instr MPKI drops from 18.55 down to 9.54, giving 1.0357$\times$ speedup). As the threshold is increased to 0.35, the policy becomes more conservative, falling back to RRIP more often, which slightly raises instruction MPKI but curtails data miss increases (on Trace 1, Data MPKI drops from 9.91 to 9.22). Threshold $\theta = 0.25$ provides an ideal balance across workloads.
+    As seen in Table~\ref{tab:dyn-irrip-threshold} and Figures~\ref{fig:dyn-irrip-perf-sensitivity} and~\ref{fig:dyn-irrip-mpki-sensitivity}, lower thresholds ($\theta = 0.15, 0.20$) allow follower sets to activate I-RRIP aggressively, yielding maximum instruction miss reduction (Trace 2 Instr MPKI drops from 18.55 down to 9.54, giving 1.0357$\times$ speedup). As the threshold is increased to 0.35, the policy becomes more conservative, falling back to RRIP more often, which slightly raises instruction MPKI but curtails data miss increases (on Trace 1, Data MPKI drops from 9.91 to 9.22). Threshold $\theta = 0.25$ provides an ideal balance across workloads.
 \end{itemize}
 
 
