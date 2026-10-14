@@ -1,0 +1,49 @@
+# ==========================================
+# Traces (do not include or commit traces)
+# ==========================================
+traces/
+*.trace
+*.trace.*
+*.champsimtrace
+*.champsimtrace.*
+*.xz
+*.gz
+*.tgz
+*.pcapng
+
+# ==========================================
+# Compiled Binaries & Build Artifacts
+# ==========================================
+bin/
+obj/
+champsim/bin/
+champsim/obj/
+*.o
+*.d
+*.out
+*.exe
+champsim/bin/*
+
+# ==========================================
+# Temporary Simulation Output Logs
+# ==========================================
+champsim/*.txt
+!champsim/results/
+
+# ==========================================
+# LaTeX Build Auxiliary Files
+# ==========================================
+*.aux
+*.log
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# ==========================================
+# Python / System Cache
+# ==========================================
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
